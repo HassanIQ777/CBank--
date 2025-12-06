@@ -64,7 +64,7 @@ void bankDeposit(Globals &globals)
 
 	else if (amount == 0)
 	{
-		Log::m_info("Canceled operation.");
+		Log::m_info("Cancelled operation.");
 		funcs::getKeyPress();
 		return;
 	}
@@ -115,7 +115,7 @@ void bankWithdraw(Globals &globals)
 	}
 	else if (amount == 0)
 	{
-		Log::m_info("Canceled operation.");
+		Log::m_info("Cancelled operation.");
 		funcs::getKeyPress();
 		return;
 	}
@@ -208,7 +208,7 @@ void setUserName(Globals &globals)
 
 	if (new_user_name.size() < 2)
 	{
-		Log::m_info("Canceled operation.");
+		Log::m_info("Cancelled operation.");
 		funcs::getKeyPress();
 		return;
 	}
@@ -231,7 +231,7 @@ void setCurrency(Globals &globals)
 
 	if (new_currency.size() < 2)
 	{
-		Log::m_info("Canceled operation.");
+		Log::m_info("Cancelled operation.");
 		funcs::getKeyPress();
 		return;
 	}
@@ -271,7 +271,7 @@ void setBalance(Globals &globals)
 
 	if (amount < 0)
 	{
-		Log::m_info("Canceled operation.");
+		Log::m_info("Cancelled operation.");
 		funcs::getKeyPress();
 		return;
 	}
@@ -308,7 +308,7 @@ void setColumns(Globals &globals)
 
 	if (amount < 0)
 	{
-		Log::m_info("Canceled operation.");
+		Log::m_info("Cancelled operation.");
 		funcs::getKeyPress();
 		return;
 	}
