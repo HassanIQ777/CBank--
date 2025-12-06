@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
 	CLIParser parser(argc, argv);
 
 	Globals globals;
-	globals.VERSION = "1.2";
+	globals.VERSION = "1.2.1";
 	parseArgs(parser, globals);
 	assignPaths(globals);
 	createFiles(globals);

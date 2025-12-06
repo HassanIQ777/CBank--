@@ -48,27 +48,26 @@ struct Globals
 
 std::string formatNumber(int num)
 {
-	std::string numStr = std::to_string(num);
-	if (numStr.length() <= 3)
-	{
-		return numStr;
-	}
+    std::string numStr = std::to_string(num);
+    if (numStr.length() <= 3)
+        return numStr;
 
-	std::string formattedNum = "";
-	int count = 0;
-	for (size_t i = numStr.length() - 1; i >= 0; i--)
-	{
-		formattedNum += numStr[i];
-		count++;
-		if (count == 3 && i > 0)
-		{
-			formattedNum += ',';
-			count = 0;
-		}
-	}
+    std::string formattedNum;
+    formattedNum.reserve(numStr.length() + numStr.length() / 3);
 
-	std::reverse(formattedNum.begin(), formattedNum.end());
-	return formattedNum;
+    int count = 0;
+    for (int i = (int)numStr.length() - 1; i >= 0; --i)
+    {
+        formattedNum += numStr[i];
+        if (++count == 3 && i > 0)
+        {
+            formattedNum += ',';
+            count = 0;
+        }
+    }
+
+    std::reverse(formattedNum.begin(), formattedNum.end());
+    return formattedNum;
 }
 
 void LOG(const Globals &globals, const std::string &msg)
