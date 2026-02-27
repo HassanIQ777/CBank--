@@ -4,6 +4,102 @@
 #define BANK_OPERATIONS
 
 #include "declarations.hpp"
+#include <limits>
+
+namespace
+{
+std::string trim(std::string text)
+{
+	const size_t first = text.find_first_not_of(" \t\r\n");
+	if (first == std::string::npos)
+	{
+		return "";
+	}
+	const size_t last = text.find_last_not_of(" \t\r\n");
+	return text.substr(first, (last - first) + 1);
+}
+
+bool tryParseLongDouble(const std::string &text, long double &value_out)
+{
+	try
+	{
+		const std::string cleaned = trim(text);
+		if (cleaned.empty())
+		{
+			return false;
+		}
+		size_t consumed = 0;
+		value_out = std::stold(cleaned, &consumed);
+		return consumed == cleaned.size();
+	}
+	catch (...)
+	{
+		return false;
+	}
+}
+
+bool tryParseSizeT(const std::string &text, size_t &value_out)
+{
+	try
+	{
+		const std::string cleaned = trim(text);
+		size_t consumed = 0;
+		const unsigned long long parsed = std::stoull(cleaned, &consumed);
+		if (consumed != cleaned.size())
+		{
+			return false;
+		}
+		if (parsed > static_cast<unsigned long long>(std::numeric_limits<size_t>::max()))
+		{
+			return false;
+		}
+		value_out = static_cast<size_t>(parsed);
+		return true;
+	}
+	catch (...)
+	{
+		return false;
+	}
+}
+
+bool parseTransactionRow(const std::string &line, std::vector<std::string> &fields_out)
+{
+	fields_out.clear();
+	const size_t c1 = line.find(',');
+	if (c1 == std::string::npos)
+	{
+		return false;
+	}
+	const size_t c2 = line.find(',', c1 + 1);
+	if (c2 == std::string::npos)
+	{
+		return false;
+	}
+	const size_t c3 = line.find(',', c2 + 1);
+	if (c3 == std::string::npos)
+	{
+		return false;
+	}
+
+	fields_out.push_back(line.substr(0, c1));
+	fields_out.push_back(line.substr(c1 + 1, c2 - c1 - 1));
+	fields_out.push_back(line.substr(c2 + 1, c3 - c2 - 1));
+	fields_out.push_back(line.substr(c3 + 1));
+	return true;
+}
+
+std::string sanitizeDetails(std::string details)
+{
+	for (char &ch : details)
+	{
+		if (ch == '\n' || ch == '\r')
+		{
+			ch = ' ';
+		}
+	}
+	return details;
+}
+} // namespace
 
 void writeUserAccountInfo(Globals &globals)
 {
@@ -24,15 +120,49 @@ void readUserAccountInfo(Globals &globals)
 {
 	/* static */ std::string fp = globals.file_paths.account_info;
 
-	long double balance = std::stold(File::m_getFromINI(fp, "balance"));
-	std::string currency = File::m_getFromINI(fp, "currency");
-	std::string user_name = File::m_getFromINI(fp, "user_name");
-	size_t columns = std::stoul(File::m_getFromINI(fp, "columns"));
+	long double balance = 0.0L;
+	size_t columns = 10;
+	bool config_changed = false;
+
+	const std::string raw_balance = File::m_getFromINI(fp, "balance");
+	if (!tryParseLongDouble(raw_balance, balance))
+	{
+		balance = 0.0L;
+		config_changed = true;
+	}
+
+	std::string currency = trim(File::m_getFromINI(fp, "currency"));
+	if (currency.empty())
+	{
+		currency = "USD";
+		config_changed = true;
+	}
+
+	std::string user_name = trim(File::m_getFromINI(fp, "user_name"));
+	if (user_name.empty())
+	{
+		user_name = "User";
+		config_changed = true;
+	}
+
+	const std::string raw_columns = File::m_getFromINI(fp, "columns");
+	if (!tryParseSizeT(raw_columns, columns))
+	{
+		columns = 10;
+		config_changed = true;
+	}
+	columns = std::max<size_t>(1, columns);
 
 	globals.user_account_info.balance = balance;
 	globals.user_account_info.currency = currency;
 	globals.user_account_info.user_name = user_name;
 	globals.columns = columns;
+
+	if (config_changed)
+	{
+		writeUserAccountInfo(globals);
+		LOG(globals, "Detected invalid account_info.ini values; restored defaults.");
+	}
 }
 
 void bankDeposit(Globals &globals)
@@ -72,6 +202,7 @@ void bankDeposit(Globals &globals)
 	print("Details: ");
 	std::string details;
 	std::getline(std::cin, details);
+	details = sanitizeDetails(details);
 	if (details.size() < 2)
 	{
 		details = " ";
@@ -123,6 +254,7 @@ void bankWithdraw(Globals &globals)
 	print("Details: ");
 	std::string details;
 	std::getline(std::cin, details);
+	details = sanitizeDetails(details);
 	if (details.size() < 2)
 	{
 		details = " ";
@@ -149,11 +281,15 @@ void bankViewTransactionHistory(Globals &globals)
 	print("\n\n", color::TXT_GREEN, "Showing latest ", globals.columns, " transactions", color::_RESET);
 
 	std::vector<std::string> contents = File::m_readfile(fp);
+	std::vector<std::string> row;
 	for (size_t i = 0; i < (size_t)std::min(contents.size(), globals.columns); i++) // each line is a transaction
 	{
 		std::string line = contents[i];
-		std::vector<std::string> v = funcs::split(line, ',');
-		table.m_addRow(v[0], v[1], v[2], v[3]);
+		if (!parseTransactionRow(line, row))
+		{
+			continue;
+		}
+		table.m_addRow(row[0], row[1], row[2], row[3]);
 	}
 
 	std::cout.flush();
@@ -167,16 +303,24 @@ void bankShowCumulative(Globals &globals)
 	std::string fp = globals.file_paths.transaction_history;
 	std::vector<std::string> contents = File::m_readfile(fp);
 	long double cum = 0;
+	std::vector<std::string> row;
 
 	print("\n\n", color::TXT_GREEN, "Cumulative of last ", globals.columns, " transactions", color::_RESET, " = ");
 
 	for (size_t i = 0; i < (size_t)std::min(contents.size(), globals.columns); i++) // each line is a transaction
 	{
 		std::string line = contents[i];
-		std::vector<std::string> v = funcs::split(line, ',');
+		if (!parseTransactionRow(line, row))
+		{
+			continue;
+		}
 
-		std::string type = v[0];
-		long double amount = std::stold(v[1]);
+		std::string type = row[0];
+		long double amount = 0.0L;
+		if (!tryParseLongDouble(row[1], amount))
+		{
+			continue;
+		}
 		if (type == "Withdraw")
 		{
 			amount *= -1;
@@ -193,7 +337,7 @@ void printUserInfo(Globals &globals)
 	print(color::TXT_GREEN, "────────────────────────", color::_RESET, "\n");
 
 	print("User Name: ", color::TXT_RED, globals.user_account_info.user_name, color::_RESET, "\n");
-	print("Balance: ", color::TXT_RED, formatNumber((int)globals.user_account_info.balance), globals.user_account_info.currency, color::_RESET, "\n");
+	print("Balance: ", color::TXT_RED, formatBalance(globals.user_account_info.balance), globals.user_account_info.currency, color::_RESET, "\n");
 
 	print(color::TXT_GREEN, "────────────────────────", color::_RESET, "\n");
 }
@@ -306,14 +450,8 @@ void setColumns(Globals &globals)
 		return;
 	}
 
-	if (amount < 0)
-	{
-		Log::m_info("Cancelled operation.");
-		funcs::getKeyPress();
-		return;
-	}
-
-	globals.columns = std::clamp(amount, 1UL, File::m_numlines(globals.file_paths.transaction_history));
+	const size_t max_entries = std::max<size_t>(1, File::m_numlines(globals.file_paths.transaction_history));
+	globals.columns = std::clamp(amount, static_cast<size_t>(1), max_entries);
 
 	writeUserAccountInfo(globals);
 	

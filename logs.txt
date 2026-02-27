@@ -1,0 +1,7 @@
+2026-02-27 14:22:47 -> Set user name to "HassanIQ777"
+2026-02-27 14:22:28 -> Set currency to " IQD"
+2026-02-27 14:22:11 -> Deposited 500000 IQD
+2026-02-27 14:21:58 -> Set currency to "IQD"
+2026-02-27 14:21:25 -> Successfully created './transaction_history.csv'
+2026-02-27 14:21:25 -> Successfully created './account_info.ini'
+2026-02-27 14:21:25 -> Successfully created './logs.txt'

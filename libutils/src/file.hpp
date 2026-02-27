@@ -145,11 +145,6 @@ bool File::m_movefile(const std::string &source, const std::string &destination)
 
 std::string File::m_readline(const std::string &filename, size_t line_index)
 {
-	if (line_index < 0)
-	{
-		return "";
-	}
-
 	std::ifstream file(filename);
 	if (!file.is_open())
 	{
@@ -170,10 +165,6 @@ std::string File::m_readline(const std::string &filename, size_t line_index)
 
 bool File::m_writeline(const std::string &filename, const std::string &new_line, size_t line_index)
 {
-	if (line_index < 0)
-	{
-		return false;
-	}
 	std::vector<std::string> content;
 	if (fs::exists(filename))
 	{
@@ -194,7 +185,7 @@ bool File::m_writeline(const std::string &filename, const std::string &new_line,
 
 bool File::m_insertline(const std::string &filename, const std::string &new_line, size_t line_index)
 {
-	if (line_index < 0 || !fs::exists(filename))
+	if (!fs::exists(filename))
 	{
 		return false;
 	}
@@ -218,7 +209,7 @@ bool File::m_removeline(const std::string &filename, size_t line_index)
 		return false;
 	}
 	std::vector<std::string> file_content = m_readfile(filename);
-	if (line_index < 0 || line_index >= file_content.size())
+	if (line_index >= file_content.size())
 	{
 		return false;
 	}
@@ -461,27 +452,34 @@ std::string File::m_getFromINI(const std::string &filename, const std::string &l
 void File::m_writeToINI(const std::string &path, const std::string &left, const std::string &right, const std::string delimiter, uint64_t reserve_value)
 {
 	std::vector<std::string> content = File::m_readfile(path, reserve_value);
-	size_t at;
-	size_t index = 0;
-	std::pair<std::string, std::string> left_right;
+	size_t at = std::string::npos;
+	bool found = false;
 
-	for (const std::string &line : content)
+	for (size_t i = 0; i < content.size(); ++i)
 	{
+		const std::string &line = content[i];
 		at = line.find(delimiter);
 		
 		if (at == std::string::npos)
-			continue;
-		
-		left_right = {line.substr(0, at), line.substr(at + 1, line.length())};
-		if (left_right.first == left)
 		{
-			left_right.second = right;
+			continue;
+		}
+		
+		const std::string line_left = line.substr(0, at);
+		if (line_left == left)
+		{
+			content[i] = left + delimiter + right;
+			found = true;
 			break;
 		}
-		index++;
 	}
 
-	File::m_writeline(path, left_right.first + delimiter + left_right.second, index);
+	if (!found)
+	{
+		content.push_back(left + delimiter + right);
+	}
+
+	File::m_writefile(path, content);
 }
 
 std::vector<std::string> File::m_sortChronological(std::vector<std::string> files, const bool &ascending)

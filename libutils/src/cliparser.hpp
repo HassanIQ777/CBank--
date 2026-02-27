@@ -6,12 +6,11 @@ Last update: 2025-Sep-20 */
 #define CLIPARSER_HPP
 
 #include <string>
-#include <string>
 
 class CLIParser
 {
   public:
-	CLIParser(int argc, char *argvec[]) : argc(argc), argv(argvec) {}
+	CLIParser(int argc_value, char *argvec[]) : argc(argc_value), argv(argvec) {}
 
 	// FUNCTION NAMES NEED A FUCKING REVISION
 	bool m_hasFlag(const std::string &flag) const;		// true if a certain flag(argument) exists in argv
